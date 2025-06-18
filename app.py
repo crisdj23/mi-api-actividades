@@ -1,68 +1,50 @@
-from flask import Flask, jsonify, request, abort
-import os
+```py file="api_client.py"
+[v0-no-op-code-block-prefix]import requests
+import json
 
-app = Flask(__name__)
+BASE_URL = "https://tu-url-de-render.onrender.com"
 
-# Ruta de bienvenida
-@app.route("/")
-def home():
-    return "Bienvenido a la API de usuarios"
+def get_activities():
+    """
+    Retrieves all activities from the API.
+    """
+    url = f"{BASE_URL}/activities"
+    response = requests.get(url)
+    response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
+    return response.json()
 
-# Datos en memoria (lista de dicts)
-tasks = [
-    {'id': 1, 'title': 'Comprar leche', 'done': False},
-    {'id': 2, 'title': 'Estudiar Flask', 'done': False},
-    {'id': 3, 'title': 'Estudiar estructura', 'done': False}
-]
+def create_activity(activity_data):
+    """
+    Creates a new activity via the API.
+    """
+    url = f"{BASE_URL}/activities"
+    headers = {'Content-Type': 'application/json'}
+    data = json.dumps(activity_data)
+    response = requests.post(url, headers=headers, data=data)
+    response.raise_for_status()
+    return response.json()
 
-# Leer todas las tareas
-@app.route('/tasks', methods=['GET'])
-def get_tasks():
-    return jsonify(tasks)
+if __name__ == '__main__':
+    # Example Usage (replace with your actual data and URL)
+    # You'll need a Render deployment to test this properly.
 
-# Leer una tarea por ID
-@app.route('/tasks/<int:task_id>', methods=['GET'])
-def get_task(task_id):
-    task = next((t for t in tasks if t['id'] == task_id), None)
-    if not task:
-        abort(404)
-    return jsonify(task)
+    # Get activities
+    try:
+        activities = get_activities()
+        print("Activities:", activities)
+    except requests.exceptions.RequestException as e:
+        print(f"Error getting activities: {e}")
 
-# Crear tarea
-@app.route('/tasks', methods=['POST'])
-def create_task():
-    if not request.json or 'title' not in request.json:
-        abort(400)
-    new_task = {
-        'id': tasks[-1]['id'] + 1 if tasks else 1,
-        'title': request.json['title'],
-        'done': False
+    # Create a new activity
+    new_activity = {
+        "title": "Example Activity",
+        "description": "This is an example activity created via the API.",
+        "due_date": "2024-12-31"
     }
-    tasks.append(new_task)
-    return jsonify(new_task), 201
 
-# Actualizar tarea
-@app.route('/tasks/<int:task_id>', methods=['PUT'])
-def update_task(task_id):
-    task = next((t for t in tasks if t['id'] == task_id), None)
-    if not task:
-        abort(404)
-    if not request.json:
-        abort(400)
-    task['title'] = request.json.get('title', task['title'])
-    task['done'] = request.json.get('done', task['done'])
-    return jsonify(task)
+    try:
+        created_activity = create_activity(new_activity)
+        print("Created Activity:", created_activity)
+    except requests.exceptions.RequestException as e:
+        print(f"Error creating activity: {e}")
 
-# Borrar tarea
-@app.route('/tasks/<int:task_id>', methods=['DELETE'])
-def delete_task(task_id):
-    global tasks
-    task = next((t for t in tasks if t['id'] == task_id), None)
-    if not task:
-        abort(404)
-    tasks = [t for t in tasks if t['id'] != task_id]
-    return '', 204
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))  # Usa el puerto que Render asigna
-    app.run(host="0.0.0.0", port=port)
